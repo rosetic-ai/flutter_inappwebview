@@ -276,9 +276,15 @@ namespace flutter_inappwebview_plugin
       auto allowedOriginRules = get_fl_map_value<std::vector<std::string>>(
         listenerValue, "allowedOriginRules", std::vector<std::string>{});
       if (!jsObjectName.empty() && !listenerId.empty()) {
-        webView->addWebMessageListener(jsObjectName, allowedOriginRules, listenerId);
+        auto result_ = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+        webView->addWebMessageListener(jsObjectName, allowedOriginRules, listenerId, [result_ = std::move(result_)](const bool registered)
+          {
+            result_->Success(registered);
+          });
       }
-      result->Success(true);
+      else {
+        result->Success(false);
+      }
     }
     else if (string_equals(methodName, "createWebMessageChannel")) {
       auto result_ = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));

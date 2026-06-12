@@ -81,14 +81,17 @@ namespace flutter_inappwebview_plugin
     return userOnlyScripts_.at(injectionTime);
   }
 
-  void UserContentController::addUserOnlyScript(std::shared_ptr<UserScript> userScript)
+  void UserContentController::addUserOnlyScript(std::shared_ptr<UserScript> userScript, const std::function<void(std::string)> completionHandler)
   {
     if (!userScript) {
+      if (completionHandler) {
+        completionHandler("");
+      }
       return;
     }
 
     addPluginScriptsIfRequired(userScript->contentWorld);
-    addScriptToWebView(userScript, nullptr);
+    addScriptToWebView(userScript, completionHandler);
     userOnlyScripts_.at(userScript->injectionTime).push_back(std::move(userScript));
   }
 
@@ -339,6 +342,7 @@ namespace flutter_inappwebview_plugin
       if (completionHandler) {
         completionHandler(userScript->id);
       }
+      return;
     }
 
     std::string source = userScript->source;

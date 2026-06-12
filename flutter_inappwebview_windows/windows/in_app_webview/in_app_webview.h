@@ -209,7 +209,8 @@ namespace flutter_inappwebview_plugin
 
     void addWebMessageListener(const std::string& jsObjectName,
       const std::vector<std::string>& allowedOriginRules,
-      const std::string& listenerId);
+      const std::string& listenerId,
+      const std::function<void(const bool)> callback = nullptr);
     void createWebMessageChannel(
       const std::function<void(const std::optional<std::string>&)> callback);
     WebMessageChannel* getWebMessageChannel(const std::string& channelId) const;

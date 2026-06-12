@@ -23,7 +23,7 @@ namespace flutter_inappwebview_plugin
     ~UserContentController();
 
     std::vector<std::shared_ptr<UserScript>> getUserOnlyScriptsAt(const UserScriptInjectionTime& injectionTime) const;
-    void addUserOnlyScript(std::shared_ptr<UserScript> userScript);
+    void addUserOnlyScript(std::shared_ptr<UserScript> userScript, const std::function<void(std::string)> completionHandler = nullptr);
     void addUserOnlyScripts(std::vector<std::shared_ptr<UserScript>> userScripts);
     void removeUserOnlyScript(std::shared_ptr<UserScript> userScript);
     void removeUserOnlyScriptAt(const int64_t& index, const UserScriptInjectionTime& injectionTime);

@@ -2439,9 +2439,13 @@ namespace flutter_inappwebview_plugin
 
   void InAppWebView::addWebMessageListener(const std::string& jsObjectName,
     const std::vector<std::string>& allowedOriginRules,
-    const std::string& listenerId)
+    const std::string& listenerId,
+    const std::function<void(const bool)> callback)
   {
     if (!webView || jsObjectName.empty() || !plugin || !plugin->registrar) {
+      if (callback) {
+        callback(false);
+      }
       return;
     }
 
@@ -2524,7 +2528,18 @@ namespace flutter_inappwebview_plugin
     );
 
     if (userContentController) {
-      userContentController->addUserOnlyScript(userScript);
+      // Reply only after Page.addScriptToEvaluateOnNewDocument has completed,
+      // so callers can rely on the object being injected into any document
+      // created after this call returns.
+      userContentController->addUserOnlyScript(userScript, [callback](const std::string& scriptId)
+        {
+          if (callback) {
+            callback(!scriptId.empty());
+          }
+        });
+    }
+    else if (callback) {
+      callback(false);
     }
   }
 

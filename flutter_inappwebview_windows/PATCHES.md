@@ -20,3 +20,17 @@ Source: https://pub.dev/packages/flutter_inappwebview_windows/versions/0.7.0-bet
    `requestViewFocusChange(state: focused)` (see `_scopeFocusChangeListener`
    in Flutter's `widgets/view.dart`), which natively re-focuses the Flutter
    HWND and blurs the HTML element the user just clicked. Not upstreamed yet.
+
+3. `windows/in_app_webview/` — reply to the `addWebMessageListener` platform
+   channel call only after the CDP `Page.addScriptToEvaluateOnNewDocument`
+   registration completes (threads the existing `addScriptToWebView`
+   completion handler through `addUserOnlyScript`). Previously the Dart
+   `await controller.addWebMessageListener(...)` resolved while registration
+   was still in flight, so a `loadUrl` issued right after could create the
+   first document before the script was registered — the `jsObjectName`
+   object (e.g. `parentChannel`) then never appears in that document and
+   page-to-Dart `postMessage` is silently lost, because document-start
+   scripts are never injected retroactively. Awaiting registration matches
+   Android/iOS, where it is synchronous. Also adds a missing early `return`
+   in the null-webview guard of `UserContentController::addScriptToWebView`,
+   which otherwise fell through to a null dereference. Not upstreamed yet.
