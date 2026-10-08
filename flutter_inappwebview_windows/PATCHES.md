@@ -34,3 +34,15 @@ Source: https://pub.dev/packages/flutter_inappwebview_windows/versions/0.7.0-bet
    Android/iOS, where it is synchronous. Also adds a missing early `return`
    in the null-webview guard of `UserContentController::addScriptToWebView`,
    which otherwise fell through to a null dereference. Not upstreamed yet.
+
+4. `windows/in_app_webview/in_app_webview.cpp` — `InAppWebView::setPosition`
+   positions the hidden WebView2 host window in client coordinates of the
+   Flutter view and calls `NotifyParentWindowPositionChanged()`. The original
+   code computed screen coordinates (Flutter window rect minus caption/border)
+   for the top-level host window; after patch 1 made the host `WS_CHILD`,
+   `SetWindowPos` interprets them as parent-client coordinates, so the host
+   ended up offset by the Flutter window's own screen position. WebView2 places
+   its native popups (form validation bubbles, `<select>` dropdowns, tooltips)
+   relative to that host, so they appeared far from the page — clamped to the
+   monitor's right edge when the webview sat on the right of a large screen.
+   Not upstreamed yet.
