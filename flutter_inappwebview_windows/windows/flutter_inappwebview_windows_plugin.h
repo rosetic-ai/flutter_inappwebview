@@ -15,6 +15,7 @@ namespace flutter_inappwebview_plugin
   class FlutterInappwebviewWindowsPlugin : public flutter::Plugin {
   public:
     flutter::PluginRegistrarWindows* registrar;
+    std::unique_ptr<flutter::BinaryMessenger> messenger;
     std::unique_ptr<WebViewEnvironmentManager> webViewEnvironmentManager;
     std::unique_ptr<InAppWebViewManager> inAppWebViewManager;
     std::unique_ptr<InAppBrowserManager> inAppBrowserManager;
@@ -22,9 +23,9 @@ namespace flutter_inappwebview_plugin
     std::unique_ptr<CookieManager> cookieManager;
     std::unique_ptr<PlatformUtil> platformUtil;
 
-    static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar);
+    static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar, FlutterDesktopMessengerRef engineMessenger);
 
-    FlutterInappwebviewWindowsPlugin(flutter::PluginRegistrarWindows* registrar);
+    FlutterInappwebviewWindowsPlugin(flutter::PluginRegistrarWindows* registrar, FlutterDesktopMessengerRef engineMessenger);
 
     virtual ~FlutterInappwebviewWindowsPlugin();
 

@@ -57,6 +57,8 @@ list(APPEND PLUGIN_SOURCES
   "utils/uuid.h"
   "types/channel_delegate.cpp"
   "types/channel_delegate.h"
+  "types/shutdown_safe_binary_messenger.cpp"
+  "types/shutdown_safe_binary_messenger.h"
   "types/base_callback_result.h"
   "types/url_request.cpp"
   "types/url_request.h"

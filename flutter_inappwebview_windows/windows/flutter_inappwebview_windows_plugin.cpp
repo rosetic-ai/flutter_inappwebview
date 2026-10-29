@@ -7,6 +7,7 @@
 #include "in_app_browser/in_app_browser_manager.h"
 #include "in_app_webview/in_app_webview_manager.h"
 #include "platform_util.h"
+#include "types/shutdown_safe_binary_messenger.h"
 #include "webview_environment/webview_environment_manager.h"
 
 
@@ -20,14 +21,14 @@ namespace flutter_inappwebview_plugin
 {
   // static
   void FlutterInappwebviewWindowsPlugin::RegisterWithRegistrar(
-    flutter::PluginRegistrarWindows* registrar)
+    flutter::PluginRegistrarWindows* registrar, FlutterDesktopMessengerRef engineMessenger)
   {
-    auto plugin = std::make_unique<FlutterInappwebviewWindowsPlugin>(registrar);
+    auto plugin = std::make_unique<FlutterInappwebviewWindowsPlugin>(registrar, engineMessenger);
     registrar->AddPlugin(std::move(plugin));
   }
 
-  FlutterInappwebviewWindowsPlugin::FlutterInappwebviewWindowsPlugin(flutter::PluginRegistrarWindows* registrar)
-    : registrar(registrar)
+  FlutterInappwebviewWindowsPlugin::FlutterInappwebviewWindowsPlugin(flutter::PluginRegistrarWindows* registrar, FlutterDesktopMessengerRef engineMessenger)
+    : registrar(registrar), messenger(std::make_unique<ShutdownSafeBinaryMessenger>(registrar->messenger(), engineMessenger))
   {
     webViewEnvironmentManager = std::make_unique<WebViewEnvironmentManager>(this);
     inAppWebViewManager = std::make_unique<InAppWebViewManager>(this);
