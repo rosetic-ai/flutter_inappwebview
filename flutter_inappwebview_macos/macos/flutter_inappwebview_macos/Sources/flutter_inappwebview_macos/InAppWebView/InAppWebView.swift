@@ -2661,6 +2661,39 @@ if(window.\(JavaScriptBridgeJS.get_JAVASCRIPT_BRIDGE_NAME())[\(_callHandlerID)] 
             super.otherMouseDown(with: event)
         }
     }
+
+    // Backport of WebKit's WKMouseTrackingObserver topmost check (not in macOS 26.5 WebKit):
+    // mouse moves under Flutter content painted over the platform view reach the page,
+    // and the web process then replaces Flutter's cursor.
+    private var _topmostTrackingAreas: [ObjectIdentifier: (area: NSTrackingArea, owner: _TopmostTrackingAreaOwner)] = [:]
+    override public func addTrackingArea(_ trackingArea: NSTrackingArea) {
+        guard trackingArea.options.contains(.mouseMoved),
+              let owner = trackingArea.owner as? NSObject,
+              NSStringFromClass(type(of: owner)) == "WKMouseTrackingObserver" else {
+            super.addTrackingArea(trackingArea)
+            return
+        }
+        let topmostOwner = _TopmostTrackingAreaOwner(webView: self, owner: owner)
+        let area = NSTrackingArea(rect: trackingArea.rect, options: trackingArea.options, owner: topmostOwner, userInfo: trackingArea.userInfo)
+        _topmostTrackingAreas[ObjectIdentifier(trackingArea)] = (area, topmostOwner)
+        super.addTrackingArea(area)
+    }
+    override public func removeTrackingArea(_ trackingArea: NSTrackingArea) {
+        guard let entry = _topmostTrackingAreas.removeValue(forKey: ObjectIdentifier(trackingArea)) else {
+            super.removeTrackingArea(trackingArea)
+            return
+        }
+        super.removeTrackingArea(entry.area)
+    }
+    override public func mouseMoved(with event: NSEvent) {
+        guard isTopmost(at: event) else { return }
+        super.mouseMoved(with: event)
+    }
+    fileprivate func isTopmost(at event: NSEvent) -> Bool {
+        guard let contentView = window?.contentView else { return true }
+        let point = contentView.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
+        return contentView.hitTest(point)?.isDescendant(of: self) ?? false
+    }
     
     public func getCertificate() -> SslCertificate? {
         guard let scheme = url?.scheme,
@@ -2847,5 +2880,41 @@ if(window.\(JavaScriptBridgeJS.get_JAVASCRIPT_BRIDGE_NAME())[\(_callHandlerID)] 
     
     deinit {
         debugPrint("InAppWebView - dealloc")
+    }
+}
+
+private final class _TopmostTrackingAreaOwner: NSObject {
+    private weak var webView: InAppWebView?
+    private weak var owner: NSObject?
+    private var wasTopmost = false
+
+    init(webView: InAppWebView, owner: NSObject) {
+        self.webView = webView
+        self.owner = owner
+    }
+
+    private func updateTopmost(_ event: NSEvent) -> Bool {
+        wasTopmost = webView?.isTopmost(at: event) ?? false
+        return wasTopmost
+    }
+
+    @objc func mouseMoved(_ event: NSEvent) {
+        guard updateTopmost(event) else { return }
+        forward(#selector(NSResponder.mouseMoved(with:)), event)
+    }
+
+    @objc func mouseEntered(_ event: NSEvent) {
+        guard updateTopmost(event) else { return }
+        forward(#selector(NSResponder.mouseEntered(with:)), event)
+    }
+
+    @objc func mouseExited(_ event: NSEvent) {
+        guard wasTopmost else { return }
+        forward(#selector(NSResponder.mouseExited(with:)), event)
+    }
+
+    private func forward(_ selector: Selector, _ event: NSEvent) {
+        guard let owner = owner, owner.responds(to: selector) else { return }
+        owner.perform(selector, with: event)
     }
 }
