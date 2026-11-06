@@ -2678,6 +2678,14 @@ if(window.\(JavaScriptBridgeJS.get_JAVASCRIPT_BRIDGE_NAME())[\(_callHandlerID)] 
         _topmostTrackingAreas[ObjectIdentifier(trackingArea)] = (area, topmostOwner)
         super.addTrackingArea(area)
     }
+    override public func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        #if DEBUG
+        if window != nil && _topmostTrackingAreas.isEmpty {
+            debugPrint("InAppWebView - WKMouseTrackingObserver tracking area not found, mouse moves under Flutter overlays reach the page")
+        }
+        #endif
+    }
     override public func removeTrackingArea(_ trackingArea: NSTrackingArea) {
         guard let entry = _topmostTrackingAreas.removeValue(forKey: ObjectIdentifier(trackingArea)) else {
             super.removeTrackingArea(trackingArea)
@@ -2689,10 +2697,16 @@ if(window.\(JavaScriptBridgeJS.get_JAVASCRIPT_BRIDGE_NAME())[\(_callHandlerID)] 
         guard isTopmost(at: event) else { return }
         super.mouseMoved(with: event)
     }
+    // Hit-tests from the FlutterView like the engine does: plugins such as desktop_drop
+    // place transparent views above it that would win a hit test from the content view.
     fileprivate func isTopmost(at event: NSEvent) -> Bool {
-        guard let contentView = window?.contentView else { return true }
-        let point = contentView.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
-        return contentView.hitTest(point)?.isDescendant(of: self) ?? false
+        var container = superview
+        while let view = container, NSStringFromClass(type(of: view)) != "FlutterView" {
+            container = view.superview
+        }
+        guard let root = container ?? window?.contentView else { return true }
+        let point = root.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
+        return root.hitTest(point)?.isDescendant(of: self) ?? false
     }
     
     public func getCertificate() -> SslCertificate? {
@@ -2899,7 +2913,13 @@ private final class _TopmostTrackingAreaOwner: NSObject {
     }
 
     @objc func mouseMoved(_ event: NSEvent) {
-        guard updateTopmost(event) else { return }
+        let wasTopmost = self.wasTopmost
+        guard updateTopmost(event) else {
+            if wasTopmost, let exitEvent = exitEvent(from: event) {
+                forward(#selector(NSResponder.mouseExited(with:)), exitEvent)
+            }
+            return
+        }
         forward(#selector(NSResponder.mouseMoved(with:)), event)
     }
 
@@ -2910,7 +2930,19 @@ private final class _TopmostTrackingAreaOwner: NSObject {
 
     @objc func mouseExited(_ event: NSEvent) {
         guard wasTopmost else { return }
+        wasTopmost = false
         forward(#selector(NSResponder.mouseExited(with:)), event)
+    }
+
+    // WebKit turns enter/exit events into mouse moves at the event location, so the
+    // exit must lie outside the web view for the page to drop its hover state.
+    private func exitEvent(from event: NSEvent) -> NSEvent? {
+        guard let webView = webView else { return nil }
+        let frame = webView.convert(webView.bounds, to: nil)
+        return NSEvent.enterExitEvent(with: .mouseExited, location: NSPoint(x: frame.minX - 1, y: frame.minY - 1),
+                                      modifierFlags: event.modifierFlags, timestamp: event.timestamp,
+                                      windowNumber: event.windowNumber, context: nil, eventNumber: 0,
+                                      trackingNumber: 0, userData: nil)
     }
 
     private func forward(_ selector: Selector, _ event: NSEvent) {
